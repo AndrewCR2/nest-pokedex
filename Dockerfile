@@ -1,42 +1,33 @@
-# Install dependencies only when needed
-FROM node:18-alpine3.15 AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+# Instalar dependencias solo cuando sea necesario
+FROM node:18.13.0-alpine3.15 AS deps
+# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine para entender por qué podría necesitarse libc6-compat.
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
 
-# Build the app with cache dependencies
-FROM node:18-alpine3.15 AS builder
+# Construir la aplicación con dependencias cacheadas
+FROM node:18.13.0-alpine3.15 AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN yarn build
 
+# Imagen de producción, copiar todos los archivos y ejecutar la aplicación
+FROM node:18.13.0-alpine3.15 AS runner
 
-# Production image, copy all the files and run next
-FROM node:18-alpine3.15 AS runner
-
-# Set working directory
+# Establecer el directorio de trabajo
 WORKDIR /usr/src/app
 
+# Copiar solo los archivos necesarios para la producción
 COPY package.json yarn.lock ./
 
 RUN yarn install --prod
 
 COPY --from=builder /app/dist ./dist
 
-# # Copiar el directorio y su contenido
-# RUN mkdir -p ./pokedex
+# Exponer el puerto (puedes ajustar este puerto según tu aplicación)
+EXPOSE 3000
 
-# COPY --from=builder ./app/dist/ ./app
-# COPY ./.env ./app/.env
-
-# # Dar permiso para ejecutar la applicación
-# RUN adduser --disabled-password pokeuser
-# RUN chown -R pokeuser:pokeuser ./pokedex
-# USER pokeuser
-
-# EXPOSE 3000
-
-CMD [ "node","dist/main" ]
+# Comando para ejecutar la aplicación
+CMD [ "node", "dist/main" ]
